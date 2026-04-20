@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use tauri::utils::config::WindowConfig;
 use tauri::{
     AppHandle, DragDropEvent, Emitter, LogicalSize, Manager, Size, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder, WindowEvent,
@@ -13,25 +12,14 @@ const NEW_WINDOW_PREFERRED_HEIGHT: f64 = 760.0;
 const NEW_WINDOW_MAX_WORK_AREA_RATIO: f64 = 0.85;
 
 pub fn create_editor_window(app: &AppHandle) -> Result<String, String> {
-    let mut config = app
-        .config()
-        .app
-        .windows
-        .first()
-        .cloned()
-        .ok_or_else(|| "기본 창 설정을 찾을 수 없습니다".to_string())?;
-
     let label = format!("main{}", Uuid::new_v4().simple());
-    config.label = label.clone();
-    config.title = "HOP".to_string();
-    config.url = WebviewUrl::App("index.html".into());
-    config.x = None;
-    config.y = None;
-    config.center = true;
-    apply_new_window_size(app, &mut config);
+    let (width, height) = new_window_size(app);
 
-    let window = WebviewWindowBuilder::from_config(app, &config)
-        .map_err(|e| format!("새 창 설정 실패: {}", e))?
+    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+        .title("HOP")
+        .inner_size(width, height)
+        .min_inner_size(MIN_EDITOR_WINDOW_WIDTH, MIN_EDITOR_WINDOW_HEIGHT)
+        .center()
         .build()
         .map_err(|e| format!("새 창 생성 실패: {}", e))?;
     install_editor_window_size_guard(&window);
@@ -41,7 +29,7 @@ pub fn create_editor_window(app: &AppHandle) -> Result<String, String> {
     Ok(label)
 }
 
-fn apply_new_window_size(app: &AppHandle, config: &mut WindowConfig) {
+fn new_window_size(app: &AppHandle) -> (f64, f64) {
     let (max_width, max_height) = active_monitor_logical_work_area(app)
         .map(|(width, height)| {
             (
@@ -49,16 +37,20 @@ fn apply_new_window_size(app: &AppHandle, config: &mut WindowConfig) {
                 (height * NEW_WINDOW_MAX_WORK_AREA_RATIO).floor(),
             )
         })
-        .unwrap_or((config.width, config.height));
+        .unwrap_or((NEW_WINDOW_PREFERRED_WIDTH, NEW_WINDOW_PREFERRED_HEIGHT));
 
-    let min_width = config.min_width.unwrap_or(MIN_EDITOR_WINDOW_WIDTH);
-    let min_height = config.min_height.unwrap_or(MIN_EDITOR_WINDOW_HEIGHT);
-
-    config.min_width = Some(min_width);
-    config.min_height = Some(min_height);
-    config.width = clamped_new_window_dimension(NEW_WINDOW_PREFERRED_WIDTH, min_width, max_width);
-    config.height =
-        clamped_new_window_dimension(NEW_WINDOW_PREFERRED_HEIGHT, min_height, max_height);
+    (
+        clamped_new_window_dimension(
+            NEW_WINDOW_PREFERRED_WIDTH,
+            MIN_EDITOR_WINDOW_WIDTH,
+            max_width,
+        ),
+        clamped_new_window_dimension(
+            NEW_WINDOW_PREFERRED_HEIGHT,
+            MIN_EDITOR_WINDOW_HEIGHT,
+            max_height,
+        ),
+    )
 }
 
 fn active_monitor_logical_work_area(app: &AppHandle) -> Option<(f64, f64)> {

@@ -288,7 +288,9 @@ pub fn destroy_current_window(window: WebviewWindow) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn create_editor_window(app: AppHandle) -> Result<String, String> {
-    crate::windows::create_editor_window(&app)
+    tauri::async_runtime::spawn_blocking(move || crate::windows::create_editor_window(&app))
+        .await
+        .map_err(|e| format!("새 창 생성 작업 실패: {}", e))?
 }
 
 fn export_pdf_from_core(
