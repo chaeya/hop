@@ -29,6 +29,12 @@ debug 번들을 만들 때는 다음 명령을 사용합니다.
 pnpm --filter hop-desktop tauri build --debug --bundles app
 ```
 
+DEB 배포 패키지를 만들 때는 다음 명령을 사용합니다.
+
+```sh
+pnpm run build:deb
+```
+
 ## 프로젝트 구조
 
 ```text
